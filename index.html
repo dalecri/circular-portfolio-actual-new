@@ -16,7 +16,8 @@
       --zoom: 1;
       --radius: 340px;
       --card-w: 200px;
-      --card-h: 200px;
+      --card-h: 280px; /* Standard 1:1.4 card aspect ratio */
+      --card-radius: 8px;
       
       /* Camera Angle Constants */
       --scene-rx: 81deg;
@@ -48,7 +49,7 @@
       justify-content: center;
     }
 
-    /* FIX: scene-orienter is now flat (no preserve-3d) to ensure z-index is strictly honored by the browser */
+    /* Flat orienter ensures browser-managed z-index works flawlessly */
     #scene-orienter {
       position: relative;
     }
@@ -59,8 +60,9 @@
       left: calc(var(--card-w) / -2);
       top: calc(var(--card-h) / -2);
       transform-style: preserve-3d; /* Retained so spines and back-faces remain volumetric */
-      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
+      transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s ease;
       cursor: pointer;
+      will-change: transform, opacity;
     }
 
     /* 3D Spines & Sides */
@@ -155,12 +157,6 @@
           <input type="range" id="slider-offsetY" min="-800" max="800" value="40" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
           <span id="val-offsetY" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">40px</span>
         </div>
-        <!-- Zoom -->
-        <div class="flex items-center gap-3">
-          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Zoom</label>
-          <input type="range" id="slider-zoom" min="0.2" max="2.5" step="0.1" value="1" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
-          <span id="val-zoom" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">1x</span>
-        </div>
         <!-- Spacing -->
         <div class="flex items-center gap-3">
           <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Spacing</label>
@@ -168,19 +164,32 @@
           <span id="val-radius" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">340px</span>
         </div>
         
-        <div class="h-[1px] bg-slate-900/5 my-1.5"></div>
+        <div class="h-[1px] bg-slate-900/5 my-1"></div>
 
-        <!-- Width -->
+        <!-- Width (Controls size maintaining classic playing card aspect ratio 1:1.4) -->
         <div class="flex items-center gap-3">
-          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Width</label>
-          <input type="range" id="slider-cardW" min="100" max="400" value="200" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Card Width</label>
+          <input type="range" id="slider-cardW" min="120" max="320" value="200" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
           <span id="val-cardW" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">200px</span>
         </div>
-        <!-- Height -->
+        
+        <!-- Card Corner Rounding setting -->
         <div class="flex items-center gap-3">
-          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Height</label>
-          <input type="range" id="slider-cardH" min="100" max="500" value="200" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
-          <span id="val-cardH" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">200px</span>
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Rounding</label>
+          <input type="range" id="slider-cardRadius" min="0" max="30" value="8" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-cardRadius" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">8px</span>
+        </div>
+
+        <div class="h-[1px] bg-slate-900/5 my-1"></div>
+        
+        <!-- Animation Styles Selection -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-mono text-slate-500">Shuffle Layout</label>
+          <div class="grid grid-cols-3 gap-1 bg-slate-900/5 p-1 rounded-xl">
+            <button id="layout-circular" class="text-[10px] font-semibold py-1.5 rounded-lg transition-all bg-white text-sky-600 shadow-sm">Circular</button>
+            <button id="layout-deck" class="text-[10px] font-semibold py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900">Deck</button>
+            <button id="layout-fan" class="text-[10px] font-semibold py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900">Fan</button>
+          </div>
         </div>
       </div>
 
@@ -271,15 +280,26 @@
     // Dynamic state
     let filter = "all";
     let focusIdx = 0;
+    let shuffleMode = "circular"; // "circular", "deck", "fan"
     
     // Sliders & layout properties mapping
     const layout = {
       offsetX: 0,
       offsetY: 40,
-      zoom: 1,
       radius: 340,
       cardW: 200,
-      cardH: 200
+      cardH: 280, // Calculated automatically: cardW * 1.4
+      cardRadius: 8
+    };
+
+    // Correctly mapping property names to CSS properties to resolve sizing bugs
+    const cssVarMap = {
+      offsetX: '--offset-x',
+      offsetY: '--offset-y',
+      radius: '--radius',
+      cardW: '--card-w',
+      cardH: '--card-h',
+      cardRadius: '--card-radius'
     };
 
     // DOM Elements Cache
@@ -306,36 +326,65 @@
     resetBtn.addEventListener("click", () => {
       updateLayoutProp("offsetX", 0);
       updateLayoutProp("offsetY", 40);
-      updateLayoutProp("zoom", 1);
       updateLayoutProp("radius", 340);
       updateLayoutProp("cardW", 200);
-      updateLayoutProp("cardH", 200);
+      updateLayoutProp("cardRadius", 8);
+      setShuffleMode("circular");
       syncSlidersToState();
     });
 
+    // Setup Layout Mode Shuffling
+    function setShuffleMode(mode) {
+      shuffleMode = mode;
+      
+      // Update UI active buttons
+      ["circular", "deck", "fan"].forEach(m => {
+        const btn = document.getElementById(`layout-${m}`);
+        if (m === mode) {
+          btn.className = "text-[10px] font-semibold py-1.5 rounded-lg transition-all bg-white text-sky-600 shadow-sm";
+        } else {
+          btn.className = "text-[10px] font-semibold py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900";
+        }
+      });
+      renderActiveCards();
+    }
+
+    ["circular", "deck", "fan"].forEach(mode => {
+      document.getElementById(`layout-${mode}`).addEventListener("click", () => setShuffleMode(mode));
+    });
+
     // Slider inputs mapping
-    ["offsetX", "offsetY", "zoom", "radius", "cardW", "cardH"].forEach(prop => {
+    ["offsetX", "offsetY", "radius", "cardW", "cardRadius"].forEach(prop => {
       const slider = document.getElementById(`slider-${prop}`);
       const valText = document.getElementById(`val-${prop}`);
       slider.addEventListener("input", (e) => {
         const val = parseFloat(e.target.value);
         updateLayoutProp(prop, val);
-        valText.textContent = `${val}${prop === 'zoom' ? 'x' : 'px'}`;
+        valText.textContent = `${val}px`;
       });
     });
 
     function updateLayoutProp(prop, value) {
       layout[prop] = value;
-      document.documentElement.style.setProperty(`--${prop.toLowerCase()}`, value + (prop === 'zoom' ? '' : 'px'));
+      
+      if (prop === "cardW") {
+        // Enforce the standard deck ratio (1:1.4)
+        layout.cardH = Math.round(value * 1.4);
+        document.documentElement.style.setProperty('--card-w', layout.cardW + 'px');
+        document.documentElement.style.setProperty('--card-h', layout.cardH + 'px');
+      } else {
+        const cssVar = cssVarMap[prop] || `--${prop.toLowerCase()}`;
+        document.documentElement.style.setProperty(cssVar, value + 'px');
+      }
       renderActiveCards();
     }
 
     function syncSlidersToState() {
-      ["offsetX", "offsetY", "zoom", "radius", "cardW", "cardH"].forEach(prop => {
+      ["offsetX", "offsetY", "radius", "cardW", "cardRadius"].forEach(prop => {
         const slider = document.getElementById(`slider-${prop}`);
         const valText = document.getElementById(`val-${prop}`);
         slider.value = layout[prop];
-        valText.textContent = `${layout[prop]}${prop === 'zoom' ? 'x' : 'px'}`;
+        valText.textContent = `${layout[prop]}px`;
       });
     }
 
@@ -391,7 +440,8 @@
         
         // Front Face Setup
         const frontFace = document.createElement("div");
-        frontFace.className = "absolute inset-0 overflow-hidden rounded-md transition-shadow duration-300";
+        frontFace.className = "absolute inset-0 overflow-hidden transition-shadow duration-300";
+        frontFace.style.borderRadius = "var(--card-radius)";
         frontFace.style.width = "var(--card-w)";
         frontFace.style.height = "var(--card-h)";
         frontFace.style.transform = `translateZ(calc(var(--depth) / 2))`;
@@ -419,8 +469,8 @@
         const headerSec = document.createElement("div");
         headerSec.className = "flex justify-between items-baseline";
         headerSec.innerHTML = `
-          <span style="font-size: max(7px, calc(10px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: ${project.color}; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;" class="truncate">${project.category}</span>
-          <span style="font-size: max(7px, calc(9px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: #64748b; font-weight: 500;">${project.year}</span>
+          <span style="font-size: max(7px, calc(10px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: ${project.color}; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;" class="truncate">{Category}</span>
+          <span style="font-size: max(7px, calc(9px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: #64748b; font-weight: 500;">{Year}</span>
         `;
         contentContainer.appendChild(headerSec);
 
@@ -436,7 +486,6 @@
         titleEl.style.display = "-webkit-box";
         titleEl.style.webkitBoxOrient = "vertical";
         titleEl.className = "card-title-clamp font-sans";
-        titleEl.textContent = project.title;
         middleSec.appendChild(titleEl);
 
         const descEl = document.createElement("div");
@@ -447,7 +496,6 @@
         descEl.style.webkitBoxOrient = "vertical";
         descEl.style.webkitLineClamp = "2";
         descEl.className = "card-desc overflow-hidden font-sans";
-        descEl.textContent = project.description;
         middleSec.appendChild(descEl);
         contentContainer.appendChild(middleSec);
 
@@ -455,18 +503,8 @@
         const techSec = document.createElement("div");
         techSec.className = "flex flex-wrap gap-1 overflow-hidden card-tech";
         techSec.style.maxHeight = "calc(22px * var(--ts))";
-        
-        project.tech.forEach(t => {
-          const badge = document.createElement("span");
-          badge.className = "font-mono font-semibold uppercase truncate rounded";
-          badge.style.fontSize = "max(6px, calc(7.5px * var(--ts)))";
-          badge.style.padding = "calc(2px * var(--ts)) calc(6px * var(--ts))";
-          badge.style.background = `${project.color}15`;
-          badge.style.color = darken(project.color, 15);
-          badge.textContent = t;
-          techSec.appendChild(badge);
-        });
         contentContainer.appendChild(techSec);
+        
         frontFace.appendChild(contentContainer);
         card.appendChild(frontFace);
 
@@ -477,7 +515,7 @@
         backFace.style.height = "var(--card-h)";
         backFace.style.transform = "translateZ(calc(var(--depth) / -2)) rotateY(180deg)";
         backFace.style.background = `linear-gradient(135deg, ${project.color}, ${darken(project.color, 15)})`;
-        backFace.style.borderRadius = "4px";
+        backFace.style.borderRadius = "var(--card-radius)";
         card.appendChild(backFace);
 
         const rightSpine = document.createElement("div");
@@ -537,27 +575,61 @@
       }
 
       // Responsive text scale ratio
-      const ts = Math.min(layout.cardW / 200, layout.cardH / 200);
+      const ts = Math.min(layout.cardW / 200, layout.cardH / 280);
       document.documentElement.style.setProperty('--ts', ts);
 
       const cards = document.querySelectorAll(".card-3d");
       cards.forEach((card, i) => {
-        const angleStep = (2 * Math.PI) / n;
-        const angle = angleStep * (i - focusIdx);
+        const project = items[i];
         
-        const x = Math.sin(angle) * layout.radius;
-        const z = Math.cos(angle) * layout.radius;
-        const isFront = i === focusIdx;
-        const normZ = (z + layout.radius) / (2 * layout.radius);
-        
-        const popOutZ = isFront ? 40 : 0;
-        const cardScale = isFront ? 1 : 0.85;
+        // Circular path difference logic
+        let diff = i - focusIdx;
+        if (diff > n / 2) diff -= n;
+        if (diff < -n / 2) diff += n;
 
-        // Visual layering math (Strictly honored now that the parent container is flat)
+        const isFront = i === focusIdx;
+        let x, z, rx, rz;
+        let cardScale = isFront ? 1 : 0.85;
+        let normZ;
+
+        // Choose layouts dynamically
+        if (shuffleMode === "circular") {
+          const angleStep = (2 * Math.PI) / n;
+          const angle = angleStep * (i - focusIdx);
+          x = Math.sin(angle) * layout.radius;
+          z = Math.cos(angle) * layout.radius;
+          normZ = (z + layout.radius) / (2 * layout.radius);
+          
+          const popOutZ = isFront ? 40 : 0;
+          z += popOutZ;
+          rx = 'var(--card-rx)';
+          rz = 'var(--card-rz)';
+        } else if (shuffleMode === "deck") {
+          // Stacked neatly in center with slight offset
+          const step = Math.abs(diff);
+          x = diff * 2.5; 
+          z = isFront ? 60 : (-step * 9);
+          normZ = isFront ? 1 : (1 - (step / n));
+          
+          rx = 'var(--card-rx)';
+          rz = `calc(var(--card-rz) + ${diff * 1}deg)`;
+        } else if (shuffleMode === "fan") {
+          // Spread neatly in a wide arc
+          const fanAngle = diff * 0.16;
+          const fanRadius = layout.radius * 0.95;
+          x = Math.sin(fanAngle) * fanRadius;
+          z = (Math.cos(fanAngle) - 1) * fanRadius + (isFront ? 40 : 0);
+          normZ = isFront ? 1 : (1 - (Math.abs(diff) / n));
+          
+          rx = 'var(--card-rx)';
+          rz = `calc(var(--card-rz) + ${diff * 5.5}deg)`;
+        }
+
+        // Layering
         card.style.zIndex = isFront ? 1000 : Math.round(normZ * 100);
         card.style.opacity = 0.3 + normZ * 0.7;
 
-        // FIX: The entire 3D camera translation is flattened into each card's transform sequence.
+        // Flatten camera and individual positions cleanly to maintain z-index
         card.style.transform = `
           translateX(var(--offset-x))
           translateY(var(--offset-y))
@@ -565,29 +637,53 @@
           rotateZ(var(--scene-rz))
           scale(var(--zoom))
           translateX(${x}px)
-          translateZ(${z + popOutZ}px)
-          rotateX(var(--card-rx))
+          translateZ(${z}px)
+          rotateX(${rx})
           rotateY(var(--card-ry))
-          rotateZ(var(--card-rz))
+          rotateZ(${rz})
           scale(${cardScale})
         `;
 
-        // Direct Text Selective Filtering inside Card Face
+        // Card specific items rendering values
         const textLayer = card.querySelector(".text-layer");
         if (textLayer) {
           textLayer.style.filter = isFront ? "none" : "blur(3.5px)";
           textLayer.style.opacity = isFront ? "1" : "0.15";
+          
+          // Inject dynamic texts to prevent chopping when dimensions change
+          const catSpan = textLayer.querySelector("span:first-child");
+          const yearSpan = textLayer.querySelector("span:last-child");
+          const titleDiv = textLayer.querySelector(".card-title-clamp");
+          const descDiv = textLayer.querySelector(".card-desc");
+          const techDiv = textLayer.querySelector(".card-tech");
+
+          if (catSpan) catSpan.textContent = project.category;
+          if (yearSpan) yearSpan.textContent = project.year;
+          if (titleDiv) titleDiv.textContent = project.title;
+          if (descDiv) descDiv.textContent = project.description;
+
+          if (techDiv) {
+            techDiv.innerHTML = "";
+            project.tech.forEach(t => {
+              const badge = document.createElement("span");
+              badge.className = "font-mono font-semibold uppercase truncate rounded";
+              badge.style.fontSize = "max(6px, calc(7.5px * var(--ts)))";
+              badge.style.padding = "calc(2px * var(--ts)) calc(6px * var(--ts))";
+              badge.style.background = `${project.color}15`;
+              badge.style.color = darken(project.color, 15);
+              badge.textContent = t;
+              techDiv.appendChild(badge);
+            });
+          }
         }
 
         const frontBox = card.querySelector(".absolute.inset-0.overflow-hidden");
         if (frontBox) {
-          const itemColor = items[i].color;
           frontBox.style.boxShadow = isFront 
-            ? `0 20px 40px ${itemColor}33, 0 8px 16px ${itemColor}1a`
+            ? `0 20px 40px ${project.color}33, 0 8px 16px ${project.color}1a`
             : "0 4px 12px rgba(0,0,0,0.03)";
         }
 
-        // Handle text heights / line clamping thresholds dynamically inside cards
         const descText = card.querySelector(".card-desc");
         const techBox = card.querySelector(".card-tech");
         const titleText = card.querySelector(".card-title-clamp");
@@ -597,20 +693,18 @@
         if (titleText) titleText.style.webkitLineClamp = (layout.cardH >= 150) ? "2" : "3";
       });
 
-      // Update Bottom Glassmorphic Info Panel
+      // Update Info Glass Panel
       const fp = items[focusIdx];
       if (fp) {
         infoPanel.classList.remove("hidden");
-        // Clear old animations to trigger fresh entry transitions
         infoPanel.classList.remove("animate-drift");
-        void infoPanel.offsetWidth; // Force layout reflow
+        void infoPanel.offsetWidth; // force layout reflow
         infoPanel.classList.add("animate-drift");
 
         document.getElementById("info-category-year").textContent = `${fp.category} · ${fp.year}`;
         document.getElementById("info-title").textContent = fp.title;
         document.getElementById("info-desc").textContent = fp.description;
 
-        // Custom details Tech Tags
         const techContainer = document.getElementById("info-tech");
         techContainer.innerHTML = "";
         fp.tech.forEach(t => {
@@ -626,7 +720,7 @@
       }
     }
 
-    // Direct Snappy Navigation handlers
+    // Navigation buttons
     document.getElementById("prev-btn").addEventListener("click", () => {
       const items = getFilteredItems();
       focusIdx = (focusIdx - 1 + items.length) % items.length;
@@ -639,14 +733,14 @@
       renderActiveCards();
     });
 
-    // Snappy, throttle-based scroll handling (highly optimized)
+    // Throttled mousewheel carousel navigation
     let lastTime = 0;
     window.addEventListener("wheel", (e) => {
       if (e.target.closest('[data-panel]')) return;
       e.preventDefault();
 
       const now = Date.now();
-      if (now - lastTime < 80) return; // Keeping wheel transition lightning fast
+      if (now - lastTime < 80) return;
       lastTime = now;
 
       const items = getFilteredItems();
@@ -658,7 +752,7 @@
       renderActiveCards();
     }, { passive: false });
 
-    // Keyboard controls
+    // Keyboard handlers
     window.addEventListener("keydown", (e) => {
       const items = getFilteredItems();
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -672,7 +766,7 @@
       }
     });
 
-    // Swipe controls for responsive touchscreen interaction
+    // Touch swiping navigation mapping
     let touchStartX = 0;
     window.addEventListener("touchstart", (e) => {
       if (e.target.closest('[data-panel]')) return;
@@ -693,14 +787,14 @@
       }
     });
 
-    // Initialize Page DOM
+    // Initialize document settings
     document.addEventListener("DOMContentLoaded", () => {
       document.documentElement.style.setProperty(`--offset-x`, "0px");
       document.documentElement.style.setProperty(`--offset-y`, "40px");
-      document.documentElement.style.setProperty(`--zoom`, "1");
       document.documentElement.style.setProperty(`--radius`, "340px");
       document.documentElement.style.setProperty(`--card-w`, "200px");
-      document.documentElement.style.setProperty(`--card-h`, "200px");
+      document.documentElement.style.setProperty(`--card-h`, "280px");
+      document.documentElement.style.setProperty(`--card-radius`, "8px");
       
       syncSlidersToState();
       renderCategoryFilters();

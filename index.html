@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cristobal's Web Projects - Archive</title>
+  
+  <!-- CSS Framework & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --offset-x: 0px;
+      --offset-y: 40px;
+      --zoom: 1;
+      --radius: 340px;
+      --card-w: 200px;
+      --card-h: 200px;
+      
+      /* Camera Angle Constants */
+      --scene-rx: 81deg;
+      --scene-rz: -55deg;
+      --card-rx: -93deg;
+      --card-ry: -55deg;
+      --card-rz: -3deg;
+      --depth: 10px;
+    }
+
+    body {
+      font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(135deg, #ffffff 0%, #f6f8fa 40%, #eef2f6 100%);
+      margin: 0;
+      overflow: hidden;
+      user-select: none;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Hardware Accelerated Carousel Scene Container */
+    #scene-container {
+      position: absolute;
+      inset: 0;
+      perspective: 5000px;
+      perspective-origin: 50% 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* FIX: scene-orienter is now flat (no preserve-3d) to ensure z-index is strictly honored by the browser */
+    #scene-orienter {
+      position: relative;
+    }
+
+    /* Individual Card Wrapper */
+    .card-3d {
+      position: absolute;
+      left: calc(var(--card-w) / -2);
+      top: calc(var(--card-h) / -2);
+      transform-style: preserve-3d; /* Retained so spines and back-faces remain volumetric */
+      transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
+      cursor: pointer;
+    }
+
+    /* 3D Spines & Sides */
+    .back-face, .right-spine, .left-spine, .top-spine, .bottom-spine {
+      position: absolute;
+      backface-visibility: hidden;
+    }
+
+    /* Slider styling updates */
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 12px;
+      width: 12px;
+      border-radius: 50%;
+      background: #0284c7;
+      cursor: pointer;
+      margin-top: -4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    input[type=range]::-moz-range-thumb {
+      height: 12px;
+      width: 12px;
+      border-radius: 50%;
+      background: #0284c7;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    /* Micro-animations */
+    @keyframes driftUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-drift {
+      animation: driftUp 0.3s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="absolute top-0 left-0 right-0 p-7 flex justify-between items-start z-20">
+    <div>
+      <div class="text-[28px] font-bold text-slate-800 tracking-tight leading-none">
+        Cristobal's Web Projects
+      </div>
+      <div id="project-count" class="text-sm text-slate-500 mt-1 font-mono">
+        0 projects
+      </div>
+    </div>
+    <div class="text-base font-bold text-slate-600 tracking-widest font-mono uppercase">
+      project : archive
+    </div>
+  </div>
+
+  <!-- ═══ 3D CAROUSEL SCENE ═══ -->
+  <div id="scene-container">
+    <div id="scene-orienter">
+      <!-- Cards injected dynamically here to preserve performance -->
+    </div>
+  </div>
+
+  <!-- ═══ LIGHTWEIGHT CONTROLS (Settings Sidebar) ═══ -->
+  <div class="absolute left-9 z-50 transition-all duration-300" style="top: 150px;">
+    <!-- Active Toggle Button -->
+    <button id="toggle-panel-btn" class="w-11 h-11 rounded-xl bg-white/75 hover:bg-white border border-white/80 text-slate-600 flex items-center justify-center backdrop-blur-xl shadow-lg shadow-slate-900/5 transition-all">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+
+    <!-- Glassmorphic Settings Panel -->
+    <div id="settings-panel" class="w-[280px] bg-white/75 border border-white/80 p-5 flex flex-col gap-1.5 rounded-2xl shadow-lg shadow-slate-900/5 backdrop-blur-2xl mt-3 hidden">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-slate-600 tracking-wider font-mono">Placement & Size</span>
+        <button id="close-panel-btn" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+      </div>
+
+      <!-- Live Sliders -->
+      <div class="flex flex-col gap-2">
+        <!-- X Offset -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">X Offset</label>
+          <input type="range" id="slider-offsetX" min="-800" max="800" value="0" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-offsetX" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">0px</span>
+        </div>
+        <!-- Y Offset -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Y Offset</label>
+          <input type="range" id="slider-offsetY" min="-800" max="800" value="40" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-offsetY" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">40px</span>
+        </div>
+        <!-- Zoom -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Zoom</label>
+          <input type="range" id="slider-zoom" min="0.2" max="2.5" step="0.1" value="1" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-zoom" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">1x</span>
+        </div>
+        <!-- Spacing -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Spacing</label>
+          <input type="range" id="slider-radius" min="200" max="800" step="10" value="340" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-radius" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">340px</span>
+        </div>
+        
+        <div class="h-[1px] bg-slate-900/5 my-1.5"></div>
+
+        <!-- Width -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Width</label>
+          <input type="range" id="slider-cardW" min="100" max="400" value="200" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-cardW" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">200px</span>
+        </div>
+        <!-- Height -->
+        <div class="flex items-center gap-3">
+          <label class="text-[11px] font-mono text-slate-500 w-16 text-right shrink-0">Height</label>
+          <input type="range" id="slider-cardH" min="100" max="500" value="200" class="flex-1 accent-sky-600 h-1 bg-black/10 rounded-lg outline-none appearance-none cursor-pointer">
+          <span id="val-cardH" class="text-[11px] font-mono text-slate-700 w-12 text-left font-semibold">200px</span>
+        </div>
+      </div>
+
+      <button id="reset-btn" class="mt-3 p-2 text-[11px] font-mono font-semibold text-slate-600 hover:text-slate-800 border border-slate-900/10 hover:border-slate-900/20 rounded-lg bg-white/60 hover:bg-white transition-all">
+        Reset All
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters Sidebar (Right) -->
+  <div id="filter-sidebar" class="absolute right-9 top-1/2 -translate-y-1/2 flex flex-col items-end gap-2 z-20">
+    <!-- Buttons dynamically rendered based on category keys -->
+  </div>
+
+  <!-- Info Panel Enclosed in Standout Glassmorphic Container (Bottom Left) -->
+  <div id="info-panel" class="absolute left-9 bottom-9 z-20 max-w-[340px] bg-white/75 border border-white/80 p-6 rounded-2xl shadow-lg shadow-slate-900/5 backdrop-blur-2xl transition-all hidden">
+    <div id="info-category-year" class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1.5">
+      CATEGORY · YEAR
+    </div>
+    <div id="info-title" class="text-22 font-bold text-slate-900 mb-2 tracking-tight leading-tight">
+      Project Title
+    </div>
+    <div id="info-desc" class="text-[13px] text-slate-600 font-sans leading-relaxed">
+      Project description goes here. This space handles longer texts easily.
+    </div>
+    <div id="info-tech" class="mt-3.5 flex flex-wrap gap-1.5">
+      <!-- Tech tags go here -->
+    </div>
+    <div id="info-pagination" class="mt-4 text-xs font-mono text-slate-400 font-semibold">
+      00 / 00
+    </div>
+  </div>
+
+  <!-- Navigation Buttons (Bottom Right) -->
+  <div class="absolute right-9 bottom-9 flex flex-col items-end gap-2 z-20">
+    <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+      scroll · arrows · swipe
+    </div>
+    <div class="flex gap-2">
+      <button id="prev-btn" class="w-9 h-9 border border-slate-900/5 rounded-xl bg-white/70 hover:bg-white text-slate-600 flex items-center justify-center text-sm font-semibold backdrop-blur-md shadow-sm transition-all active:scale-95">←</button>
+      <button id="next-btn" class="w-9 h-9 border border-slate-900/5 rounded-xl bg-white/70 hover:bg-white text-slate-600 flex items-center justify-center text-sm font-semibold backdrop-blur-md shadow-sm transition-all active:scale-95">→</button>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    const PROJECTS = [
+      { id: 1, title: "Voxel Japanese Garden", description: "Three.js voxel scene with ambient lighting, bird perching, and mobile optimization", category: "creative-coding", tech: ["Three.js", "WebGL"], github: "https://github.com", color: "#059669", accent: "#a7f3d0", face: "#f0fdf4", year: "2025" },
+      { id: 2, title: "Pixel Desk Kanban", description: "The Office-themed pixel art Kanban tracker with animated characters and confetti", category: "apps", tech: ["React", "Canvas"], github: "https://github.com", color: "#ea580c", accent: "#ffedd5", face: "#fffaf5", year: "2025" },
+      { id: 3, title: "Cat Caption Generator", description: "AI-powered caption generator for TwoStoryTails and Diego's Department", category: "ai", tech: ["React", "Anthropic API"], github: "https://github.com", color: "#2563eb", accent: "#dbeafe", face: "#f8fafc", year: "2025" },
+      { id: 4, title: "Isometric Cube Wallpaper", description: "Full-screen isometric cube generator with neon/cyberpunk palette strategies", category: "creative-coding", tech: ["Canvas", "CSS"], github: "https://github.com", color: "#db2777", accent: "#fbcfe8", face: "#fdf2f8", year: "2025" },
+      { id: 5, title: "Carte Blanche", description: "French learning app for intermediate learners with iPhone-optimized UI", category: "apps", tech: ["React Native", "AI"], github: "https://github.com", color: "#4f46e5", accent: "#e0e7ff", face: "#f5f3ff", year: "2024" },
+      { id: 6, title: "Pet Medication Tracker", description: "Mobile app for tracking pet meds, reminders, and vet appointments", category: "apps", tech: ["React", "Mobile"], github: "https://github.com", color: "#e11d48", accent: "#ffe4e6", face: "#fff1f2", year: "2025" },
+      { id: 7, title: "Book Soundtrack Generator", description: "AI app that generates playlists matching book moods via Anthropic API", category: "ai", tech: ["React", "Anthropic API"], github: "https://github.com", color: "#10b981", accent: "#d1fae5", face: "#f0fdf4", year: "2024" },
+      { id: 8, title: "Pixel Art City Nightscape", description: "Animated pixel art cityscape with dynamic lighting and parallax scrolling", category: "creative-coding", tech: ["Canvas", "JS"], github: "https://github.com", color: "#0284c7", accent: "#e0f2fe", face: "#f0f9ff", year: "2025" },
+      { id: 9, title: "Pixel Art Generator", description: "36-object pixel art generator with export and custom palettes", category: "creative-coding", tech: ["React", "Canvas"], github: "https://github.com", color: "#d97706", accent: "#fef3c7", face: "#fffbeb", year: "2025" },
+      { id: 10, title: "8-Bit Sound Wave Icons", description: "Retro sound wave icon set as animated React components", category: "creative-coding", tech: ["React", "SVG"], github: "https://github.com", color: "#ec4899", accent: "#fce7f3", face: "#fdf2f8", year: "2024" },
+      { id: 11, title: "Press Release Generator", description: "AI-driven tool for generating professional press releases", category: "ai", tech: ["React", "AI"], github: "https://github.com", color: "#0d9488", accent: "#ccfbf1", face: "#f0fdfa", year: "2024" },
+      { id: 12, title: "Pet Creator Toolkit", description: "Social media content calendar and toolkit for pet creators", category: "apps", tech: ["React", "Notion API"], github: "https://github.com", color: "#f97316", accent: "#ffedd5", face: "#fffaf5", year: "2025" },
+      { id: 13, title: "WordLoft", description: "Vocabulary building app with spaced repetition and contextual learning", category: "apps", tech: ["React", "IndexedDB"], github: "https://github.com", color: "#65a30d", accent: "#ecfccb", face: "#f7fee7", year: "2023" },
+      { id: 14, title: "Dashboard Builder", description: "Internal dashboard generator for senior management monitoring", category: "apps", tech: ["React", "D3.js"], github: "https://github.com", color: "#8b5cf6", accent: "#ede9fe", face: "#faf5ff", year: "2024" },
+    ];
+
+    const CATEGORIES = [
+      { key: "all", label: "all" },
+      { key: "creative-coding", label: "creative coding" },
+      { key: "apps", label: "apps" },
+      { key: "ai", label: "ai" },
+    ];
+
+    // Helpers
+    function darken(h, a) {
+      let c = parseInt(h.replace("#", ""), 16);
+      return `rgb(${Math.max((c >> 16) - a, 0)}, ${Math.max(((c >> 8) & 0xff) - a, 0)}, ${Math.max((c & 0xff) - a, 0)})`;
+    }
+    function lighten(h, a) {
+      let c = parseInt(h.replace("#", ""), 16);
+      return `rgb(${Math.min((c >> 16) + a, 255)}, ${Math.min(((c >> 8) & 0xff) + a, 255)}, ${Math.min((c & 0xff) + a, 255)})`;
+    }
+
+    function getGeometricPattern(id, c1, c2, c3) {
+      const type = id % 4;
+      const angle = (id * 47) % 180;
+      const size = 20 + ((id * 13) % 60);
+      return `repeating-linear-gradient(${angle}deg, ${c1} 0%, ${c1} ${size}px, ${c2} ${size}px, ${c2} ${size}px)`;
+    }
+
+    // Dynamic state
+    let filter = "all";
+    let focusIdx = 0;
+    
+    // Sliders & layout properties mapping
+    const layout = {
+      offsetX: 0,
+      offsetY: 40,
+      zoom: 1,
+      radius: 340,
+      cardW: 200,
+      cardH: 200
+    };
+
+    // DOM Elements Cache
+    const sceneOrienter = document.getElementById("scene-orienter");
+    const projectCountEl = document.getElementById("project-count");
+    const filterSidebar = document.getElementById("filter-sidebar");
+    const infoPanel = document.getElementById("info-panel");
+    const togglePanelBtn = document.getElementById("toggle-panel-btn");
+    const settingsPanel = document.getElementById("settings-panel");
+    const closePanelBtn = document.getElementById("close-panel-btn");
+    const resetBtn = document.getElementById("reset-btn");
+
+    // Init listeners for Sidebar Panel
+    togglePanelBtn.addEventListener("click", () => {
+      settingsPanel.classList.toggle("hidden");
+      togglePanelBtn.classList.toggle("hidden");
+    });
+    closePanelBtn.addEventListener("click", () => {
+      settingsPanel.classList.add("hidden");
+      togglePanelBtn.classList.remove("hidden");
+    });
+
+    // Reset layout attributes
+    resetBtn.addEventListener("click", () => {
+      updateLayoutProp("offsetX", 0);
+      updateLayoutProp("offsetY", 40);
+      updateLayoutProp("zoom", 1);
+      updateLayoutProp("radius", 340);
+      updateLayoutProp("cardW", 200);
+      updateLayoutProp("cardH", 200);
+      syncSlidersToState();
+    });
+
+    // Slider inputs mapping
+    ["offsetX", "offsetY", "zoom", "radius", "cardW", "cardH"].forEach(prop => {
+      const slider = document.getElementById(`slider-${prop}`);
+      const valText = document.getElementById(`val-${prop}`);
+      slider.addEventListener("input", (e) => {
+        const val = parseFloat(e.target.value);
+        updateLayoutProp(prop, val);
+        valText.textContent = `${val}${prop === 'zoom' ? 'x' : 'px'}`;
+      });
+    });
+
+    function updateLayoutProp(prop, value) {
+      layout[prop] = value;
+      document.documentElement.style.setProperty(`--${prop.toLowerCase()}`, value + (prop === 'zoom' ? '' : 'px'));
+      renderActiveCards();
+    }
+
+    function syncSlidersToState() {
+      ["offsetX", "offsetY", "zoom", "radius", "cardW", "cardH"].forEach(prop => {
+        const slider = document.getElementById(`slider-${prop}`);
+        const valText = document.getElementById(`val-${prop}`);
+        slider.value = layout[prop];
+        valText.textContent = `${layout[prop]}${prop === 'zoom' ? 'x' : 'px'}`;
+      });
+    }
+
+    // Get filtered list of items
+    function getFilteredItems() {
+      return filter === "all" ? PROJECTS : PROJECTS.filter(p => p.category === filter);
+    }
+
+    // Compute categories counts
+    function getCategoryCounts() {
+      const counts = { all: PROJECTS.length };
+      PROJECTS.forEach(p => {
+        counts[p.category] = (counts[p.category] || 0) + 1;
+      });
+      return counts;
+    }
+
+    // Generate categories UI in Sidebar
+    function renderCategoryFilters() {
+      filterSidebar.innerHTML = "";
+      const counts = getCategoryCounts();
+      CATEGORIES.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = `flex items-baseline gap-1.5 cursor-pointer border-none bg-none transition-all duration-300 py-1 ${
+          filter === cat.key ? "opacity-100 font-bold" : "opacity-35 hover:opacity-75"
+        }`;
+        
+        btn.innerHTML = `
+          <span style="font-size: ${filter === cat.key ? '18px' : '14px'}; color: #1e293b; transition: all 0.3s ease;">${cat.label}</span>
+          <sup class="text-[11px] font-mono text-slate-500 font-normal">${counts[cat.key] || 0}</sup>
+        `;
+        
+        btn.addEventListener("click", () => {
+          filter = cat.key;
+          focusIdx = 0;
+          renderCategoryFilters();
+          rebuildCardsDOM();
+        });
+        filterSidebar.appendChild(btn);
+      });
+    }
+
+    // Generate all 3D cards DOM elements
+    function rebuildCardsDOM() {
+      const items = getFilteredItems();
+      projectCountEl.textContent = `${items.length} project${items.length !== 1 ? 's' : ''}`;
+      sceneOrienter.innerHTML = "";
+
+      items.forEach((project, i) => {
+        const card = document.createElement("div");
+        card.className = "card-3d";
+        card.setAttribute("data-id", project.id);
+        
+        // Front Face Setup
+        const frontFace = document.createElement("div");
+        frontFace.className = "absolute inset-0 overflow-hidden rounded-md transition-shadow duration-300";
+        frontFace.style.width = "var(--card-w)";
+        frontFace.style.height = "var(--card-h)";
+        frontFace.style.transform = `translateZ(calc(var(--depth) / 2))`;
+        frontFace.style.backfaceVisibility = "hidden";
+        frontFace.style.background = project.face;
+
+        // Custom Geometric backdrop
+        const patternCover = document.createElement("div");
+        patternCover.className = "absolute inset-0 opacity-[0.12] transition-all duration-300 pattern-cover";
+        patternCover.style.background = getGeometricPattern(project.id, lighten(project.color, 25), project.accent, project.face);
+        frontFace.appendChild(patternCover);
+
+        // Neon Top line
+        const topStrip = document.createElement("div");
+        topStrip.className = "absolute top-0 left-0 right-0 h-1.5 transition-all duration-300 top-strip";
+        topStrip.style.background = project.color;
+        frontFace.appendChild(topStrip);
+
+        // Content Area (Flexible top-to-bottom layout utilizing 100% space)
+        const contentContainer = document.createElement("div");
+        contentContainer.className = "absolute inset-0 flex flex-col justify-between box-border text-layer transition-all duration-400";
+        contentContainer.style.padding = "calc(16px * var(--ts)) calc(14px * var(--ts)) calc(14px * var(--ts))";
+
+        // Category/Year Meta Header
+        const headerSec = document.createElement("div");
+        headerSec.className = "flex justify-between items-baseline";
+        headerSec.innerHTML = `
+          <span style="font-size: max(7px, calc(10px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: ${project.color}; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;" class="truncate">${project.category}</span>
+          <span style="font-size: max(7px, calc(9px * var(--ts))); font-family: 'JetBrains Mono', monospace; color: #64748b; font-weight: 500;">${project.year}</span>
+        `;
+        contentContainer.appendChild(headerSec);
+
+        // Core Section (Title + description)
+        const middleSec = document.createElement("div");
+        middleSec.className = "flex flex-col flex-1 justify-center gap-1.5";
+        
+        const titleEl = document.createElement("div");
+        titleEl.style.fontSize = "max(9px, calc(18px * var(--ts)))";
+        titleEl.style.fontWeight = "700";
+        titleEl.style.color = "#0f172a";
+        titleEl.style.lineHeight = "1.15";
+        titleEl.style.display = "-webkit-box";
+        titleEl.style.webkitBoxOrient = "vertical";
+        titleEl.className = "card-title-clamp font-sans";
+        titleEl.textContent = project.title;
+        middleSec.appendChild(titleEl);
+
+        const descEl = document.createElement("div");
+        descEl.style.fontSize = "max(8px, calc(10px * var(--ts)))";
+        descEl.style.color = "#475569";
+        descEl.style.lineHeight = "1.3";
+        descEl.style.display = "-webkit-box";
+        descEl.style.webkitBoxOrient = "vertical";
+        descEl.style.webkitLineClamp = "2";
+        descEl.className = "card-desc overflow-hidden font-sans";
+        descEl.textContent = project.description;
+        middleSec.appendChild(descEl);
+        contentContainer.appendChild(middleSec);
+
+        // Tech Tags Bottom
+        const techSec = document.createElement("div");
+        techSec.className = "flex flex-wrap gap-1 overflow-hidden card-tech";
+        techSec.style.maxHeight = "calc(22px * var(--ts))";
+        
+        project.tech.forEach(t => {
+          const badge = document.createElement("span");
+          badge.className = "font-mono font-semibold uppercase truncate rounded";
+          badge.style.fontSize = "max(6px, calc(7.5px * var(--ts)))";
+          badge.style.padding = "calc(2px * var(--ts)) calc(6px * var(--ts))";
+          badge.style.background = `${project.color}15`;
+          badge.style.color = darken(project.color, 15);
+          badge.textContent = t;
+          techSec.appendChild(badge);
+        });
+        contentContainer.appendChild(techSec);
+        frontFace.appendChild(contentContainer);
+        card.appendChild(frontFace);
+
+        // Spine setups for solid 3D shape
+        const backFace = document.createElement("div");
+        backFace.className = "back-face";
+        backFace.style.width = "var(--card-w)";
+        backFace.style.height = "var(--card-h)";
+        backFace.style.transform = "translateZ(calc(var(--depth) / -2)) rotateY(180deg)";
+        backFace.style.background = `linear-gradient(135deg, ${project.color}, ${darken(project.color, 15)})`;
+        backFace.style.borderRadius = "4px";
+        card.appendChild(backFace);
+
+        const rightSpine = document.createElement("div");
+        rightSpine.className = "right-spine";
+        rightSpine.style.width = "calc(var(--depth) + 0.5px)";
+        rightSpine.style.height = "var(--card-h)";
+        rightSpine.style.transform = "translateX(calc(var(--card-w) - 0.5px)) rotateY(90deg)";
+        rightSpine.style.transformOrigin = "left center";
+        rightSpine.style.background = `linear-gradient(180deg, ${lighten(project.color, 25)}, ${project.color} 50%, ${darken(project.color, 15)})`;
+        card.appendChild(rightSpine);
+
+        const leftSpine = document.createElement("div");
+        leftSpine.className = "left-spine";
+        leftSpine.style.width = "calc(var(--depth) + 0.5px)";
+        leftSpine.style.height = "var(--card-h)";
+        leftSpine.style.transform = "translateX(0.5px) rotateY(-90deg)";
+        leftSpine.style.transformOrigin = "left center";
+        leftSpine.style.background = `linear-gradient(180deg, ${lighten(project.color, 15)}, ${darken(project.color, 10)})`;
+        card.appendChild(leftSpine);
+
+        const topSpine = document.createElement("div");
+        topSpine.className = "top-spine";
+        topSpine.style.width = "calc(var(--card-w) + 0.5px)";
+        topSpine.style.height = "calc(var(--depth) + 0.5px)";
+        topSpine.style.transform = "translateX(-0.25px) translateY(-0.5px) rotateX(90deg)";
+        topSpine.style.transformOrigin = "center top";
+        topSpine.style.background = `linear-gradient(90deg, ${lighten(project.color, 30)}, ${lighten(project.color, 40)}, ${lighten(project.color, 25)})`;
+        card.appendChild(topSpine);
+
+        const bottomSpine = document.createElement("div");
+        bottomSpine.className = "bottom-spine";
+        bottomSpine.style.width = "calc(var(--card-w) + 0.5px)";
+        bottomSpine.style.height = "calc(var(--depth) + 0.5px)";
+        bottomSpine.style.transform = "translateX(-0.25px) translateY(var(--card-h)) rotateX(-90deg)";
+        bottomSpine.style.transformOrigin = "center top";
+        bottomSpine.style.background = darken(project.color, 25);
+        card.appendChild(bottomSpine);
+
+        card.addEventListener("click", () => {
+          focusIdx = i;
+          renderActiveCards();
+        });
+
+        sceneOrienter.appendChild(card);
+      });
+
+      renderActiveCards();
+    }
+
+    // Update coordinates, visibility, layering, text size and info panel values instantly
+    function renderActiveCards() {
+      const items = getFilteredItems();
+      const n = items.length;
+      if (n === 0) {
+        infoPanel.classList.add("hidden");
+        return;
+      }
+
+      // Responsive text scale ratio
+      const ts = Math.min(layout.cardW / 200, layout.cardH / 200);
+      document.documentElement.style.setProperty('--ts', ts);
+
+      const cards = document.querySelectorAll(".card-3d");
+      cards.forEach((card, i) => {
+        const angleStep = (2 * Math.PI) / n;
+        const angle = angleStep * (i - focusIdx);
+        
+        const x = Math.sin(angle) * layout.radius;
+        const z = Math.cos(angle) * layout.radius;
+        const isFront = i === focusIdx;
+        const normZ = (z + layout.radius) / (2 * layout.radius);
+        
+        const popOutZ = isFront ? 40 : 0;
+        const cardScale = isFront ? 1 : 0.85;
+
+        // Visual layering math (Strictly honored now that the parent container is flat)
+        card.style.zIndex = isFront ? 1000 : Math.round(normZ * 100);
+        card.style.opacity = 0.3 + normZ * 0.7;
+
+        // FIX: The entire 3D camera translation is flattened into each card's transform sequence.
+        card.style.transform = `
+          translateX(var(--offset-x))
+          translateY(var(--offset-y))
+          rotateX(var(--scene-rx))
+          rotateZ(var(--scene-rz))
+          scale(var(--zoom))
+          translateX(${x}px)
+          translateZ(${z + popOutZ}px)
+          rotateX(var(--card-rx))
+          rotateY(var(--card-ry))
+          rotateZ(var(--card-rz))
+          scale(${cardScale})
+        `;
+
+        // Direct Text Selective Filtering inside Card Face
+        const textLayer = card.querySelector(".text-layer");
+        if (textLayer) {
+          textLayer.style.filter = isFront ? "none" : "blur(3.5px)";
+          textLayer.style.opacity = isFront ? "1" : "0.15";
+        }
+
+        const frontBox = card.querySelector(".absolute.inset-0.overflow-hidden");
+        if (frontBox) {
+          const itemColor = items[i].color;
+          frontBox.style.boxShadow = isFront 
+            ? `0 20px 40px ${itemColor}33, 0 8px 16px ${itemColor}1a`
+            : "0 4px 12px rgba(0,0,0,0.03)";
+        }
+
+        // Handle text heights / line clamping thresholds dynamically inside cards
+        const descText = card.querySelector(".card-desc");
+        const techBox = card.querySelector(".card-tech");
+        const titleText = card.querySelector(".card-title-clamp");
+
+        if (descText) descText.style.display = (layout.cardH >= 150 && isFront) ? "-webkit-box" : "none";
+        if (techBox) techBox.style.display = (layout.cardH >= 170 && isFront) ? "flex" : "none";
+        if (titleText) titleText.style.webkitLineClamp = (layout.cardH >= 150) ? "2" : "3";
+      });
+
+      // Update Bottom Glassmorphic Info Panel
+      const fp = items[focusIdx];
+      if (fp) {
+        infoPanel.classList.remove("hidden");
+        // Clear old animations to trigger fresh entry transitions
+        infoPanel.classList.remove("animate-drift");
+        void infoPanel.offsetWidth; // Force layout reflow
+        infoPanel.classList.add("animate-drift");
+
+        document.getElementById("info-category-year").textContent = `${fp.category} · ${fp.year}`;
+        document.getElementById("info-title").textContent = fp.title;
+        document.getElementById("info-desc").textContent = fp.description;
+
+        // Custom details Tech Tags
+        const techContainer = document.getElementById("info-tech");
+        techContainer.innerHTML = "";
+        fp.tech.forEach(t => {
+          const span = document.createElement("span");
+          span.className = "text-[10px] font-mono font-semibold uppercase px-2.5 py-1 rounded-md bg-slate-900/5 text-slate-700";
+          span.textContent = t;
+          techContainer.appendChild(span);
+        });
+
+        document.getElementById("info-pagination").textContent = `${String(focusIdx + 1).padStart(2, "0")} / ${String(items.length).padStart(2, "0")}`;
+      } else {
+        infoPanel.classList.add("hidden");
+      }
+    }
+
+    // Direct Snappy Navigation handlers
+    document.getElementById("prev-btn").addEventListener("click", () => {
+      const items = getFilteredItems();
+      focusIdx = (focusIdx - 1 + items.length) % items.length;
+      renderActiveCards();
+    });
+
+    document.getElementById("next-btn").addEventListener("click", () => {
+      const items = getFilteredItems();
+      focusIdx = (focusIdx + 1) % items.length;
+      renderActiveCards();
+    });
+
+    // Snappy, throttle-based scroll handling (highly optimized)
+    let lastTime = 0;
+    window.addEventListener("wheel", (e) => {
+      if (e.target.closest('[data-panel]')) return;
+      e.preventDefault();
+
+      const now = Date.now();
+      if (now - lastTime < 80) return; // Keeping wheel transition lightning fast
+      lastTime = now;
+
+      const items = getFilteredItems();
+      if (e.deltaY > 0 || e.deltaX > 0) {
+        focusIdx = (focusIdx + 1) % items.length;
+      } else {
+        focusIdx = (focusIdx - 1 + items.length) % items.length;
+      }
+      renderActiveCards();
+    }, { passive: false });
+
+    // Keyboard controls
+    window.addEventListener("keydown", (e) => {
+      const items = getFilteredItems();
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        focusIdx = (focusIdx + 1) % items.length;
+        renderActiveCards();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        focusIdx = (focusIdx - 1 + items.length) % items.length;
+        renderActiveCards();
+      }
+    });
+
+    // Swipe controls for responsive touchscreen interaction
+    let touchStartX = 0;
+    window.addEventListener("touchstart", (e) => {
+      if (e.target.closest('[data-panel]')) return;
+      touchStartX = e.touches[0].clientX;
+    });
+
+    window.addEventListener("touchend", (e) => {
+      if (e.target.closest('[data-panel]')) return;
+      const items = getFilteredItems();
+      const diff = touchStartX - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 40) {
+        if (diff > 0) {
+          focusIdx = (focusIdx + 1) % items.length;
+        } else {
+          focusIdx = (focusIdx - 1 + items.length) % items.length;
+        }
+        renderActiveCards();
+      }
+    });
+
+    // Initialize Page DOM
+    document.addEventListener("DOMContentLoaded", () => {
+      document.documentElement.style.setProperty(`--offset-x`, "0px");
+      document.documentElement.style.setProperty(`--offset-y`, "40px");
+      document.documentElement.style.setProperty(`--zoom`, "1");
+      document.documentElement.style.setProperty(`--radius`, "340px");
+      document.documentElement.style.setProperty(`--card-w`, "200px");
+      document.documentElement.style.setProperty(`--card-h`, "200px");
+      
+      syncSlidersToState();
+      renderCategoryFilters();
+      rebuildCardsDOM();
+    });
+  </script>
+</body>
+</html>

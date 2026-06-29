@@ -337,6 +337,21 @@
     function setShuffleMode(mode) {
       shuffleMode = mode;
       
+      // FIX: Dynamically configure standard layout width defaults depending on selected mode
+      if (mode === "deck" || mode === "fan") {
+        updateLayoutProp("cardW", 240);
+      } else {
+        updateLayoutProp("cardW", 200);
+      }
+      
+      // Synchronize modified layout values with setting sidebar inputs
+      const cardWSlider = document.getElementById("slider-cardW");
+      const cardWValText = document.getElementById("val-cardW");
+      if (cardWSlider && cardWValText) {
+        cardWSlider.value = layout.cardW;
+        cardWValText.textContent = `${layout.cardW}px`;
+      }
+      
       // Update UI active buttons
       ["circular", "deck", "fan"].forEach(m => {
         const btn = document.getElementById(`layout-${m}`);
